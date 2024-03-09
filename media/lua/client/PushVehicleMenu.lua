@@ -98,18 +98,19 @@ local function addPushVehicleMenu(playerObj, context, vehicle)
     -- Only draw the submenu if they meet the strength requirements
     -- Otherwise show the menu item but red with a tooltip
     if ISVehicleMenu.canPush(playerObj, vehicle, pushOption, minimumStr) then
-        local subMenuMain = context:getNew(context);
+        local subMenuMain = ISContextMenu:getNew(context);
         context:addSubMenu(pushOption, subMenuMain);
 
         local leftOption = subMenuMain:addOption(getText("ContextMenu_PUSH_VEHICLE_FROMLEFT"));
-        local subMenuLeft = context:getNew(context);
+        local subMenuLeft = ISContextMenu:getNew(context);
 
         context:addSubMenu(leftOption, subMenuLeft)
         subMenuLeft:addOption(getText("ContextMenu_PUSH_VEHICLE_FROMFRONT"), playerObj, onPushVehicle, vehicle, 'LeftFront')
         subMenuLeft:addOption(getText("ContextMenu_PUSH_VEHICLE_FROMREAR"), playerObj, onPushVehicle, vehicle, 'LeftRear')
 
         local rightOption = subMenuMain:addOption(getText("ContextMenu_PUSH_VEHICLE_FROMRIGHT"))
-        local subMenuRight = context:getNew(context)
+        local subMenuRight = ISContextMenu:getNew(context)
+
         context:addSubMenu(rightOption, subMenuRight)
         subMenuRight:addOption(getText("ContextMenu_PUSH_VEHICLE_FROMFRONT"), playerObj, onPushVehicle, vehicle, 'RightFront')
         subMenuRight:addOption(getText("ContextMenu_PUSH_VEHICLE_FROMREAR"), playerObj, onPushVehicle, vehicle, 'RightRear')
@@ -120,10 +121,40 @@ local function addPushVehicleMenu(playerObj, context, vehicle)
 end
 
 
-
-local oldMenuOutsideVehicle = ISVehicleMenu.FillMenuOutsideVehicle
-
-ISVehicleMenu.FillMenuOutsideVehicle = function(playerObj, context, vehicle, test)
-    oldMenuOutsideVehicle(playerObj, context, vehicle, test);
-    addPushVehicleMenu(getSpecificPlayer(playerObj), context, vehicle)
+local function onfillMenuOutsideVehicleMenu(player, context, vehicle, test)
+    local playerObj = getSpecificPlayer(player)
+    local vehicle = playerObj:getVehicle()
+    if not vehicle then
+        if JoypadState.players[player+1] then
+            local px = playerObj:getX()
+            local py = playerObj:getY()
+            local pz = playerObj:getZ()
+            local sqs = {}
+            sqs[1] = getCell():getGridSquare(px, py, pz)
+            local dir = playerObj:getDir()
+            if (dir == IsoDirections.N) then        sqs[2] = getCell():getGridSquare(px-1, py-1, pz); sqs[3] = getCell():getGridSquare(px, py-1, pz);   sqs[4] = getCell():getGridSquare(px+1, py-1, pz);
+            elseif (dir == IsoDirections.NE) then   sqs[2] = getCell():getGridSquare(px, py-1, pz);   sqs[3] = getCell():getGridSquare(px+1, py-1, pz); sqs[4] = getCell():getGridSquare(px+1, py, pz);
+            elseif (dir == IsoDirections.E) then    sqs[2] = getCell():getGridSquare(px+1, py-1, pz); sqs[3] = getCell():getGridSquare(px+1, py, pz);   sqs[4] = getCell():getGridSquare(px+1, py+1, pz);
+            elseif (dir == IsoDirections.SE) then   sqs[2] = getCell():getGridSquare(px+1, py, pz);   sqs[3] = getCell():getGridSquare(px+1, py+1, pz); sqs[4] = getCell():getGridSquare(px, py+1, pz);
+            elseif (dir == IsoDirections.S) then    sqs[2] = getCell():getGridSquare(px+1, py+1, pz); sqs[3] = getCell():getGridSquare(px, py+1, pz);   sqs[4] = getCell():getGridSquare(px-1, py+1, pz);
+            elseif (dir == IsoDirections.SW) then   sqs[2] = getCell():getGridSquare(px, py+1, pz);   sqs[3] = getCell():getGridSquare(px-1, py+1, pz); sqs[4] = getCell():getGridSquare(px-1, py, pz);
+            elseif (dir == IsoDirections.W) then    sqs[2] = getCell():getGridSquare(px-1, py+1, pz); sqs[3] = getCell():getGridSquare(px-1, py, pz);   sqs[4] = getCell():getGridSquare(px-1, py-1, pz);
+            elseif (dir == IsoDirections.NW) then   sqs[2] = getCell():getGridSquare(px-1, py, pz);   sqs[3] = getCell():getGridSquare(px-1, py-1, pz); sqs[4] = getCell():getGridSquare(px, py-1, pz);
+            end
+            for _, sq in ipairs(sqs) do
+                vehicle = sq:getVehicleContainer()
+                if vehicle then
+                    return addPushVehicleMenu(playerObj, context, vehicle)
+                end
+            end
+            return
+        end
+        
+        vehicle = IsoObjectPicker.Instance:PickVehicle(getMouseXScaled(), getMouseYScaled())
+        if vehicle then
+            return addPushVehicleMenu(playerObj, context, vehicle)
+        end
+    end
 end
+
+Events.OnFillWorldObjectContextMenu.Add(onfillMenuOutsideVehicleMenu)
